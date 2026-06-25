@@ -23,6 +23,15 @@ def _infer_type(samples: list[str]) -> str:
     return "FLOAT"
 
 
+def build_catalog_for_tables(table_names: list[str], data_dir: str = "data/") -> Catalog:
+    """Build a Catalog containing schemas for multiple tables."""
+    catalog = Catalog()
+    for name in table_names:
+        single = build_catalog(name, data_dir)
+        catalog.tables.extend(single.tables)
+    return catalog
+
+
 def build_catalog(table_name: str, data_dir: str = "data/") -> Catalog:
     """Read CSV headers (and first few rows) to build a Catalog for the given table."""
     from models.exceptions import SemanticError

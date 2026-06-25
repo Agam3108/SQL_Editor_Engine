@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Union
 from models.plan import PlanNode
 from models.table import Table
 
@@ -12,7 +14,7 @@ class SortNode:
         except ValueError:
             return table  # column not in result — skip sort silently
 
-        def sort_key(row: list[str]) -> float | str:
+        def sort_key(row: list[str]) -> Union[float, str]:
             val = row[col_idx] if col_idx < len(row) else ""
             try:
                 return float(val)

@@ -8,6 +8,14 @@ _KEYWORDS: dict[str, TokenType] = {
     "ORDER":  TokenType.ORDER,
     "BY":     TokenType.BY,
     "GROUP":  TokenType.GROUP,
+    "SUM":    TokenType.SUM,
+    "AVG":    TokenType.AVG,
+    "COUNT":  TokenType.COUNT,
+    "MIN":    TokenType.MIN,
+    "MAX":    TokenType.MAX,
+    "JOIN":   TokenType.JOIN,
+    "INNER":  TokenType.INNER,
+    "ON":     TokenType.ON,
 }
 
 
@@ -59,6 +67,10 @@ class Lexer:
             elif ch == "!" and self._peek_next() == "=":
                 tokens.append(Token(type=TokenType.NEQ, value="!="))
                 self._pos += 2
+
+            elif ch == ".":
+                tokens.append(Token(type=TokenType.DOT, value="."))
+                self._pos += 1
 
             elif ch == ",":
                 tokens.append(Token(type=TokenType.COMMA, value=","))

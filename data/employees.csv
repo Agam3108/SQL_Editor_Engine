@@ -1,8 +1,8 @@
-name,age,department,salary
-Alice,25,Engineering,60000
-Bob,30,Marketing,50000
-Charlie,35,Engineering,80000
-David,28,HR,45000
-Eve,40,Engineering,90000
-Frank,32,Marketing,55000
-Grace,27,HR,42000
+name,age,department,salary,dept_id
+Alice,25,Engineering,60000,1
+Bob,30,Marketing,50000,2
+Charlie,35,Engineering,80000,1
+David,28,HR,45000,3
+Eve,40,Engineering,90000,1
+Frank,32,Marketing,55000,2
+Grace,27,HR,42000,3

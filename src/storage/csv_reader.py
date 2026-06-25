@@ -1,5 +1,7 @@
+from __future__ import annotations
 import csv
 import os
+from typing import Optional
 from models.table import Table
 
 
@@ -7,7 +9,7 @@ class CSVReader:
     def __init__(self, filepath: str) -> None:
         self._filepath = filepath
 
-    def read(self, columns: list[str] | None = None) -> Table:
+    def read(self, columns: Optional[list[str]] = None) -> Table:
         """Read the CSV. If `columns` is given, return only those columns (projection pruning)."""
         table = Table()
 

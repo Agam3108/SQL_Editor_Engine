@@ -10,10 +10,21 @@ class TokenType(Enum):
     ORDER = auto()
     BY = auto()
     GROUP = auto()
+    # Aggregate functions
+    SUM = auto()
+    AVG = auto()
+    COUNT = auto()
+    MIN = auto()
+    MAX = auto()
+    # Join keywords
+    JOIN = auto()
+    INNER = auto()
+    ON = auto()
 
     # Identifiers
     IDENTIFIER = auto()
     STAR = auto()
+    DOT = auto()
 
     # Operators
     GT = auto()

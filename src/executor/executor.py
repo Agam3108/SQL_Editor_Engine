@@ -4,6 +4,8 @@ from models.exceptions import ExecutionError
 from src.executor.scan_node import ScanNode
 from src.executor.filter_node import FilterNode
 from src.executor.sort_node import SortNode
+from src.executor.aggregate_node import AggregateNode
+from src.executor.join_node import HashJoinNode
 
 
 class Executor:
@@ -13,10 +15,21 @@ class Executor:
 
     def execute(self) -> Table:
         result = Table()
+        # Buffer for multi-table queries: each SCAN appends here; HASH_JOIN reads from it
+        scan_buffer: list[Table] = []
 
         for node in self._plan:
             if node.type == PlanType.SCAN:
-                result = ScanNode(node, self._data_dir).execute()
+                scanned = ScanNode(node, self._data_dir).execute()
+                scan_buffer.append(scanned)
+                result = scanned
+
+            elif node.type == PlanType.HASH_JOIN:
+                if len(scan_buffer) < 2:
+                    raise ExecutionError("HASH_JOIN requires two scanned tables")
+                result = HashJoinNode(node).execute(scan_buffer[-2], scan_buffer[-1])
+                # Replace buffer contents with the joined table so subsequent JOINs chain
+                scan_buffer = [result]
 
             elif node.type == PlanType.FILTER:
                 result = FilterNode(node).execute(result)
@@ -25,8 +38,10 @@ class Executor:
                 result = SortNode(node).execute(result)
 
             elif node.type == PlanType.GROUP:
-                # GROUP BY: sort by the group column (aggregation is a future feature)
                 result = SortNode(node).execute(result)
+
+            elif node.type == PlanType.AGGREGATE:
+                result = AggregateNode(node).execute(result)
 
             elif node.type == PlanType.PROJECT:
                 result = self._project(node.columns, result)

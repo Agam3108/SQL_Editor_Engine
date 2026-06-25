@@ -2,9 +2,14 @@ from models.tokens import Token, TokenType
 from models.ast_nodes import (
     ASTNode, SelectNode, FromNode, WhereNode,
     OrderByNode, GroupByNode, ConditionNode,
+    AggregateExpr, JoinClause,
 )
 from models.exceptions import ParseError
 from typing import Optional
+
+_AGGREGATE_TOKENS = {
+    TokenType.SUM, TokenType.AVG, TokenType.COUNT, TokenType.MIN, TokenType.MAX,
+}
 
 _STOP_TOKENS = {
     TokenType.WHERE, TokenType.ORDER, TokenType.GROUP,
@@ -41,23 +46,24 @@ class Parser:
                     self.consume()
                     select_node.star = True
                 else:
-                    while self.peek().type not in _STOP_TOKENS | {TokenType.FROM}:
-                        tok = self.consume()
-                        if tok.type == TokenType.IDENTIFIER:
-                            select_node.columns.append(tok.value)
-                        # skip commas
+                    self._parse_select_list(select_node)
 
             elif t == TokenType.FROM:
                 self.consume()
                 from_node = FromNode()
-                while self.peek().type not in _STOP_TOKENS:
+                # Read the primary table name
+                while self.peek().type not in _STOP_TOKENS | {TokenType.INNER, TokenType.JOIN}:
                     tok = self.consume()
                     if tok.type == TokenType.IDENTIFIER:
                         from_node.table = tok.value
+                # Parse any JOIN clauses
+                while self.peek().type in (TokenType.INNER, TokenType.JOIN):
+                    join = self._parse_join_clause()
+                    from_node.joins.append(join)
 
             elif t == TokenType.WHERE:
                 self.consume()
-                left = self.consume().value
+                left = self._consume_col_ref()
                 op = self.consume().value
                 right = self.consume().value
                 where_node = WhereNode(condition=ConditionNode(left=left, op=op, right=right))
@@ -98,3 +104,73 @@ class Parser:
             select_node.child = from_node
 
         return select_node
+
+    def _parse_select_list(self, select_node: SelectNode) -> None:
+        """Parse column list and aggregate expressions after SELECT."""
+        stop = _STOP_TOKENS | {TokenType.FROM}
+        while self.peek().type not in stop:
+            tok = self.peek()
+            if tok.type in _AGGREGATE_TOKENS:
+                agg = self._parse_aggregate()
+                select_node.aggregates.append(agg)
+            elif tok.type == TokenType.IDENTIFIER:
+                self.consume()
+                select_node.columns.append(tok.value)
+            else:
+                self.consume()  # skip commas and other punctuation
+
+    def _parse_aggregate(self) -> AggregateExpr:
+        """Parse SUM(col), AVG(col), COUNT(*), MIN(col), MAX(col)."""
+        func_tok = self.consume()
+        func = func_tok.value.upper()
+        if self.peek().type != TokenType.LPAREN:
+            raise ParseError(f"Expected '(' after {func}, got '{self.peek().value}'")
+        self.consume()  # (
+        if self.peek().type == TokenType.STAR:
+            col = "*"
+            self.consume()
+        elif self.peek().type == TokenType.IDENTIFIER:
+            col = self.consume().value
+        else:
+            raise ParseError(f"Expected column name or * inside {func}(), got '{self.peek().value}'")
+        if self.peek().type != TokenType.RPAREN:
+            raise ParseError(f"Expected ')' after {func}({col}), got '{self.peek().value}'")
+        self.consume()  # )
+        return AggregateExpr(func=func, column=col)
+
+    def _parse_join_clause(self) -> JoinClause:
+        """Parse [INNER] JOIN table ON left_col = right_col."""
+        if self.peek().type == TokenType.INNER:
+            self.consume()  # INNER
+        if self.peek().type != TokenType.JOIN:
+            raise ParseError(f"Expected JOIN, got '{self.peek().value}'")
+        self.consume()  # JOIN
+
+        if self.peek().type != TokenType.IDENTIFIER:
+            raise ParseError(f"Expected table name after JOIN, got '{self.peek().value}'")
+        join_table = self.consume().value
+
+        if self.peek().type != TokenType.ON:
+            raise ParseError(f"Expected ON after JOIN {join_table}, got '{self.peek().value}'")
+        self.consume()  # ON
+
+        left_col = self._consume_col_ref()
+
+        if self.peek().type != TokenType.EQ:
+            raise ParseError(f"Expected '=' in JOIN condition, got '{self.peek().value}'")
+        self.consume()  # =
+
+        right_col = self._consume_col_ref()
+
+        return JoinClause(table=join_table, left_col=left_col, right_col=right_col)
+
+    def _consume_col_ref(self) -> str:
+        """Consume a column reference, stripping optional table prefix (table.col → col)."""
+        if self.peek().type != TokenType.IDENTIFIER:
+            return self.consume().value
+        first = self.consume().value
+        if self.peek().type == TokenType.DOT:
+            self.consume()  # .
+            col = self.consume().value
+            return col  # strip table prefix
+        return first
