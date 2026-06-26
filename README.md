@@ -69,7 +69,7 @@ SelectNode(columns=["name"])
             └── FromNode(table="users", order_by=OrderByNode(column="age"))
 ```
 
-Each clause maps to a node class defined in `models/ast_nodes.py`. The chain is always `SelectNode → [WhereNode →] FromNode`. `ORDER BY` and `GROUP BY` are stored as separate attributes on `FromNode` (not competing for the same child pointer — a bug present in the original C++ version).
+Each clause maps to a node class defined in `models/ast_nodes.py`. The chain is always `SelectNode → [WhereNode →] FromNode`. `ORDER BY` and `GROUP BY` are stored as separate attributes on `FromNode`.
 
 Aggregate functions (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`) are parsed into `AggregateExpr` objects stored on `SelectNode.aggregates`. JOIN clauses are parsed into `JoinClause` objects stored on `FromNode.joins`.
 
